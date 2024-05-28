@@ -10,13 +10,18 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@vis.gl/react-google-maps": "^1.0.1",
+    "@react-google-maps/api": "^2.19.3",
+    "firebase": "^10.12.2",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "sass": "^1.77.2",
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
+    "@types/google.maps": "^3.55.9",
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",
+    "@types/uuid": "^9.0.8",
     "@typescript-eslint/eslint-plugin": "^7.2.0",
     "@typescript-eslint/parser": "^7.2.0",
     "@vitejs/plugin-react": "^4.2.1",
