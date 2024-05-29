@@ -42,8 +42,6 @@ const center = {
 const MyMapComponent: React.FC = () => {
   const [markers, setMarkers] = useState<MarkerPosition[]>([]);
 
-  console.log("markers", markers);
-
   const { isLoaded } = useJsApiLoader({
     id: "google-map",
     googleMapsApiKey: MAP_API,
@@ -52,15 +50,13 @@ const MyMapComponent: React.FC = () => {
   useEffect(() => {
     const fetchMarkers = async () => {
       const querySnapshot = await getDocs(collection(firestore, "Markers"));
-      console.log("querySnapshot", querySnapshot.docs);
+
       const markersData = querySnapshot.docs.map(
         (doc) =>
           ({
-            // timestamp: doc.id,
             ...doc.data(),
           } as MarkerPosition)
       );
-      console.log("markersData", markersData);
 
       setMarkers(markersData);
     };
@@ -81,19 +77,13 @@ const MyMapComponent: React.FC = () => {
         timestamp,
       };
 
-      //TODO: remove all consoles!!!
-      console.log("newMarker", newMarker);
-
       try {
-        console.log("inside try");
         await setDoc(doc(firestore, "Markers", newMarker.timestamp), newMarker);
 
         setMarkers((markers) => [...markers, newMarker]);
 
         if (markers.length > 0) {
-          console.log("inside if");
           const lastMarker = markers[markers.length - 1];
-          console.log("lastMarker", lastMarker);
 
           await updateDoc(doc(firestore, "Markers", lastMarker.timestamp), {
             next: newMarker.timestamp,
@@ -194,7 +184,7 @@ const MyMapComponent: React.FC = () => {
           )
         );
       } catch (e) {
-        console.error("Error updating document", e);
+        console.log("Error updating document", e);
       }
     },
     []

@@ -1,8 +1,9 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
+import { FIREBASE_API_KEY } from "./constants";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCS7feAVJLDp9eZpy7II5ALD7zldFkLMng",
+  apiKey: FIREBASE_API_KEY,
   authDomain: "test-task-viso-e675c.firebaseapp.com",
   projectId: "test-task-viso-e675c",
   storageBucket: "test-task-viso-e675c.appspot.com",
