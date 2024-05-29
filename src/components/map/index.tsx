@@ -7,6 +7,7 @@ import {
   collection,
   getDocs,
   writeBatch,
+  updateDoc,
 } from "firebase/firestore";
 import {
   GoogleMap,
@@ -25,6 +26,7 @@ interface MarkerPosition {
     lng: number;
   };
   timestamp: string;
+  next?: string | null;
 }
 
 const containerStyle = {
@@ -40,9 +42,6 @@ const center = {
 const MyMapComponent: React.FC = () => {
   const [markers, setMarkers] = useState<MarkerPosition[]>([]);
 
-  const markersRef = collection(firestore, "markers");
-  console.log("markersRef", markersRef);
-
   console.log("markers", markers);
 
   const { isLoaded } = useJsApiLoader({
@@ -53,13 +52,16 @@ const MyMapComponent: React.FC = () => {
   useEffect(() => {
     const fetchMarkers = async () => {
       const querySnapshot = await getDocs(collection(firestore, "Markers"));
+      console.log("querySnapshot", querySnapshot.docs);
       const markersData = querySnapshot.docs.map(
         (doc) =>
           ({
-            timestamp: doc.id,
+            // timestamp: doc.id,
             ...doc.data(),
           } as MarkerPosition)
       );
+      console.log("markersData", markersData);
+
       setMarkers(markersData);
     };
 
@@ -79,29 +81,78 @@ const MyMapComponent: React.FC = () => {
         timestamp,
       };
 
+      //TODO: remove all consoles!!!
       console.log("newMarker", newMarker);
 
       try {
+        console.log("inside try");
         await setDoc(doc(firestore, "Markers", newMarker.timestamp), newMarker);
+
         setMarkers((markers) => [...markers, newMarker]);
+
+        if (markers.length > 0) {
+          console.log("inside if");
+          const lastMarker = markers[markers.length - 1];
+          console.log("lastMarker", lastMarker);
+
+          await updateDoc(doc(firestore, "Markers", lastMarker.timestamp), {
+            next: newMarker.timestamp,
+          });
+        }
       } catch (e) {
         console.log("Error adding document", e);
       }
     },
-    []
+    [markers]
   );
 
-  const handleMarkerClick = useCallback(async (timestamp: string) => {
-    try {
-      const docRef = doc(firestore, "Markers", timestamp);
-      await deleteDoc(docRef);
-      setMarkers((current) =>
-        current.filter((mark) => mark.timestamp !== timestamp)
+  const handleMarkerClick = useCallback(
+    async (timestamp: string) => {
+      const markerIndex = markers.findIndex(
+        (mark) => mark.timestamp === timestamp
       );
-    } catch (e) {
-      console.log("Error removing document", e);
-    }
-  }, []);
+
+      if (markerIndex === -1) return;
+
+      const previousMarker = markers[markerIndex - 1] || null;
+      const nextMarker = markers[markerIndex + 1] || null;
+
+      try {
+        const docRef = doc(firestore, "Markers", timestamp);
+        await deleteDoc(docRef);
+        setMarkers((current) =>
+          current.filter((mark) => mark.timestamp !== timestamp)
+        );
+
+        if (previousMarker) {
+          const updatedPreviousMarker = {
+            ...previousMarker,
+            next: nextMarker ? nextMarker.timestamp : null,
+          };
+
+          const previousMarkerRef = doc(
+            firestore,
+            "Markers",
+            previousMarker.timestamp
+          );
+          await updateDoc(previousMarkerRef, {
+            next: updatedPreviousMarker.next,
+          });
+
+          setMarkers((current) =>
+            current.map((mark) =>
+              mark.timestamp === previousMarker.timestamp
+                ? updatedPreviousMarker
+                : mark
+            )
+          );
+        }
+      } catch (e) {
+        console.log("Error removing document", e);
+      }
+    },
+    [markers]
+  );
 
   const handleRemoveAllMarkers = async () => {
     const markerDocs = await getDocs(collection(firestore, "Markers"));
@@ -118,6 +169,36 @@ const MyMapComponent: React.FC = () => {
       console.error("Error removing all markers", e);
     }
   };
+
+  const handleMarkerDragEnd = useCallback(
+    async (event: google.maps.MapMouseEvent, timestamp: string) => {
+      if (!event.latLng) {
+        console.log("Marker detail info is not available");
+        return;
+      }
+
+      const newLat = event.latLng.lat();
+      const newLng = event.latLng.lng();
+
+      try {
+        const docRef = doc(firestore, "Markers", timestamp);
+        await updateDoc(docRef, {
+          location: { lat: newLat, lng: newLng },
+        });
+
+        setMarkers((current) =>
+          current.map((mark) =>
+            mark.timestamp === timestamp
+              ? { ...mark, location: { lat: newLat, lng: newLng } }
+              : mark
+          )
+        );
+      } catch (e) {
+        console.error("Error updating document", e);
+      }
+    },
+    []
+  );
 
   if (!isLoaded) {
     return <p>Loading...</p>;
@@ -147,6 +228,7 @@ const MyMapComponent: React.FC = () => {
                   draggable
                   clusterer={clusterer}
                   position={mark.location}
+                  onDragEnd={(e) => handleMarkerDragEnd(e, mark.timestamp)}
                   label={{
                     text: (index + 1).toString(),
                     color: "white",
