@@ -14,18 +14,17 @@ import {
   useJsApiLoader,
   MarkerClustererF,
 } from "@react-google-maps/api";
-import { v4 as uuidv4 } from "uuid";
 
 import { MAP_API } from "../../constants";
 
 import "./style.scss";
 
 interface MarkerPosition {
-  position: {
+  location: {
     lat: number;
     lng: number;
   };
-  id: string;
+  timestamp: string;
 }
 
 const containerStyle = {
@@ -57,7 +56,7 @@ const MyMapComponent: React.FC = () => {
       const markersData = querySnapshot.docs.map(
         (doc) =>
           ({
-            id: doc.id,
+            timestamp: doc.id,
             ...doc.data(),
           } as MarkerPosition)
       );
@@ -74,15 +73,16 @@ const MyMapComponent: React.FC = () => {
         return;
       }
 
+      const timestamp = Date.now().toString();
       const newMarker: MarkerPosition = {
-        position: { lat: event.latLng.lat(), lng: event.latLng.lng() },
-        id: uuidv4(),
+        location: { lat: event.latLng.lat(), lng: event.latLng.lng() },
+        timestamp,
       };
 
       console.log("newMarker", newMarker);
 
       try {
-        await setDoc(doc(firestore, "Markers", newMarker.id), newMarker);
+        await setDoc(doc(firestore, "Markers", newMarker.timestamp), newMarker);
         setMarkers((markers) => [...markers, newMarker]);
       } catch (e) {
         console.log("Error adding document", e);
@@ -91,11 +91,13 @@ const MyMapComponent: React.FC = () => {
     []
   );
 
-  const handleMarkerClick = useCallback(async (id: string) => {
+  const handleMarkerClick = useCallback(async (timestamp: string) => {
     try {
-      const docRef = doc(firestore, "Markers", id);
+      const docRef = doc(firestore, "Markers", timestamp);
       await deleteDoc(docRef);
-      setMarkers((current) => current.filter((mark) => mark.id !== id));
+      setMarkers((current) =>
+        current.filter((mark) => mark.timestamp !== timestamp)
+      );
     } catch (e) {
       console.log("Error removing document", e);
     }
@@ -140,11 +142,11 @@ const MyMapComponent: React.FC = () => {
             <>
               {markers.map((mark, index) => (
                 <Marker
-                  onClick={() => handleMarkerClick(mark.id)}
-                  key={mark.id}
+                  onClick={() => handleMarkerClick(mark.timestamp)}
+                  key={mark.timestamp}
                   draggable
                   clusterer={clusterer}
-                  position={mark.position}
+                  position={mark.location}
                   label={{
                     text: (index + 1).toString(),
                     color: "white",
